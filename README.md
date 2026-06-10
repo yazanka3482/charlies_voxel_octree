@@ -1,6 +1,12 @@
-# VoxelOctree
+# Charlie's Voxel Octree Library
 
 A fast, memory-efficient sparse voxel octree library with GPU-accelerated mesh-to-octree voxelization. Minimizes octree memory usage by bit packing the lowest octree level and using 32 bit pointers to reference child nodes (includes 32b pool allocator). Includes CPU and GPU accelerated mesh voxelization using OpenCL and [tinyBVH](https://github.com/jbikker/tinybvh).
+
+### Example: Stanford bunny voxelization
+
+| 128³ | 512³ |
+|:---:|:---:|
+| ![Stanford bunny voxelized at 128³](images/vox_low.png) | ![Stanford bunny voxelized at 512³](images/vox_high.png) |
 
 ## Features
 
@@ -8,11 +14,11 @@ A fast, memory-efficient sparse voxel octree library with GPU-accelerated mesh-t
 
 The core data structure is a **sparse bit octree** (`BitOctree`) that stores occupancy and material type with minimal memory overhead:
 
-- **1 bit per leaf voxel** for occupancy, with an 8-bit material type at the finest level
-- **Pool-allocated branch nodes** — child pointers are 32-bit pool indices, not raw pointers, keeping the tree compact and serializable
+- **1 bit per leaf voxel** - (also have 8bit version if you want to store more information per voxel)
+- **Pool-allocated branch nodes** — child pointers are 32-bit memory pool indices, saving memory compared to raw pointers and allowing fast serialization
 - **Binary serialization** — serialization is achieved by just dumping the whole pool to a file (extremely fast)
 
-`VoxelOctree` wraps `BitOctree` with a world-space bounding box, thread-safe accessors (`std::shared_mutex`), and coordinate helpers for converting between voxel indices and positions.
+- **Thread Safety** — Separate read and write locks for the octree
 
 ### Mesh → Octree (GPU-accelerated)
 
