@@ -15,7 +15,7 @@ Timings measured on a Mac M1 GPU.
 
 ### BitOctree — space-efficient sparse storage
 
-The core data structure is a **sparse bit octree** (`BitOctree`) that stores occupancy and material type with minimal memory overhead:
+The core data structure is a **sparse bit octree** (`BitOctree`) that stores voxel solid/empty status with minimal memory overhead:
 
 - **1 bit per leaf voxel** - (also have 8bit version if you want to store more information per voxel)
 - **Pool-allocated branch nodes** — child pointers are 32-bit memory pool indices, saving memory compared to raw pointers and allowing fast serialization
@@ -33,7 +33,7 @@ The core data structure is a **sparse bit octree** (`BitOctree`) that stores occ
 
 **GPU path (OpenCL):** When built with `USE_OPENCL=1` and an OpenCL device is available, batch voxel classification runs on the GPU via custom OpenCL kernels. This is significantly faster for high-resolution voxelization.
 
-**CPU fallback:** If OpenCL is unavailable or `--cpu` is passed, the same classification runs on the CPU using BVH ray-parity tests and AABB-triangle overlap checks.
+**CPU fallback:** If OpenCL is unavailable or `--cpu` is passed, the same classification runs on the CPU.
 
 ## Quick start
 
