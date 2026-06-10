@@ -82,7 +82,7 @@ The included `voxelize_stl` tool loads an STL mesh and writes a binary `.voxel` 
 Example with the bundled test mesh:
 
 ```bash
-./voxelize_stl test_cube.stl -o test_cube_out --cell-size 0.05
+./voxelize_stl test_stls/stanford_bunny.stl -d 9
 ```
 
 On success you should see mesh bounds, octree depth, memory usage, and a timing breakdown.
