@@ -125,7 +125,8 @@ int main(int argc, char** argv)
 
     octree.saveToFile(outputPath);
     std::cout << "Wrote octree to " << outputPath << " ("
-              << octree.getMemoryUsage() << " bytes)\n";
+              << octree.getFileSize() << " bytes on disk, "
+              << octree.getMemoryUsage() << " bytes allocated)\n";
 
     CumulativeProfiler::printReport("STL mesh octree voxelization");
     return 0;

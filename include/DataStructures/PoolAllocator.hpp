@@ -25,6 +25,7 @@ struct PoolAllocator32b {
 
     uint32_t n_AllocatedChunks = 0; //just for profiling
     uint32_t m_FreeChunk = 0;
+    uint32_t m_LastPoolHighWaterMark = 0; // highest used chunk index in the last pool
 
     // this bitmask represents the bits of an index into a pool array (the upper bits)
     uint32_t m_InPoolBitmask = 0;
@@ -79,6 +80,38 @@ struct PoolAllocator32b {
         return 0x1 | (poolIndex << m_Log2PoolSize);
     }
 
+    void _appendPoolFreeTail(Chunk* pool, uint32_t poolIndex, uint32_t startIdx){
+        int poolSize = 0x1 << m_Log2PoolSize;
+        for (int i = startIdx; i < poolSize - 1; i++){
+            pool[i].m_Next = (i + 1) | (poolIndex << m_Log2PoolSize);
+        }
+        pool[poolSize - 1].m_Next = (poolIndex << m_Log2PoolSize);
+
+        uint32_t ptr = m_FreeChunk;
+        if (((ptr & m_PoolIndexBitmask) >> m_Log2PoolSize) != poolIndex){
+            if ((ptr & m_InPoolBitmask) == 0){
+                m_FreeChunk = startIdx | (poolIndex << m_Log2PoolSize);
+            }
+            return;
+        }
+        while (true){
+            uint32_t inPool = ptr & m_InPoolBitmask;
+            uint32_t next = pool[inPool].m_Next;
+            if ((next & m_InPoolBitmask) == 0){
+                pool[inPool].m_Next = startIdx | (poolIndex << m_Log2PoolSize);
+                break;
+            }
+            ptr = next;
+        }
+    }
+
+    uint32_t _poolHighWaterMark(int poolIndex) const {
+        if (poolIndex < m_NumPools - 1){
+            return (0x1u << m_Log2PoolSize) - 1;
+        }
+        return m_LastPoolHighWaterMark;
+    }
+
     /**
      * @brief returns the next available 32b pointer 
      * returns 0 if there are no available chunks
@@ -90,14 +123,19 @@ struct PoolAllocator32b {
                 return 0; // pool allocator is full
             }
 
+            m_LastPoolHighWaterMark = (0x1u << m_Log2PoolSize) - 1;
             m_Pools[m_NumPools] = new Chunk[0x1<<m_Log2PoolSize];
             // intializes the new pool and points the free chunk to the first index of the new pool
             current_free_chunk = _initializePool(m_Pools[m_NumPools], m_NumPools);
             m_NumPools++;
+            m_LastPoolHighWaterMark = 0;
         }
         uint32_t poolsIndex = (current_free_chunk & m_PoolIndexBitmask) >> m_Log2PoolSize;
         uint32_t inPoolIndex = current_free_chunk & m_InPoolBitmask;
         m_FreeChunk = m_Pools[poolsIndex][inPoolIndex].m_Next;
+        if (poolsIndex == (uint32_t)(m_NumPools - 1) && inPoolIndex > m_LastPoolHighWaterMark){
+            m_LastPoolHighWaterMark = inPoolIndex;
+        }
         n_AllocatedChunks++;
         return current_free_chunk;
     }
@@ -132,15 +170,17 @@ struct PoolAllocator32b {
         std::cout << "m_FreeChunk: " << m_FreeChunk << "\n";
         std::cout << "m_NumPools: " << m_NumPools << "\n";
         for (int i = 0; i < m_NumPools; i++){
-            file.write((char*)m_Pools[i], sizeof(Chunk) * (0x1 << m_Log2PoolSize));
+            uint32_t hwm = _poolHighWaterMark(i);
+            file.write((char*)&hwm, sizeof(hwm));
+            file.write((char*)m_Pools[i], sizeof(Chunk) * (hwm + 1));
         }
     }
 
     // how many bytes will be written to a file if you call writeToFile
-    uint64_t getFileSize(){
+    uint64_t getFileSize() const {
         uint64_t fileSize = sizeof(n_AllocatedChunks) + sizeof(m_FreeChunk) + sizeof(m_NumPools);
         for (int i = 0; i < m_NumPools; i++){
-            fileSize += sizeof(Chunk) * (0x1 << m_Log2PoolSize);
+            fileSize += sizeof(uint32_t) + sizeof(Chunk) * (_poolHighWaterMark(i) + 1);
         }
         return fileSize;
     }
@@ -154,11 +194,20 @@ struct PoolAllocator32b {
         std::cout << "n_AllocatedChunks: " << n_AllocatedChunks << "\n";
         std::cout << "m_FreeChunk: " << m_FreeChunk << "\n";
         std::cout << "m_NumPools: " << m_NumPools << "\n";
+        int poolSize = 0x1 << m_Log2PoolSize;
         for (int i = 0; i < m_NumPools; i++){
+            uint32_t hwm = 0;
+            file.read((char*)&hwm, sizeof(hwm));
             if(i >= originalNumPools){ //allocate new pools as needed
-                m_Pools[i] = new Chunk[0x1 << m_Log2PoolSize];
+                m_Pools[i] = new Chunk[poolSize];
             }
-            file.read((char*)m_Pools[i], sizeof(Chunk) * (0x1 << m_Log2PoolSize));
+            file.read((char*)m_Pools[i], sizeof(Chunk) * (hwm + 1));
+            if ((int)(hwm + 1) < poolSize){
+                _appendPoolFreeTail(m_Pools[i], i, hwm + 1);
+            }
+            if (i == m_NumPools - 1){
+                m_LastPoolHighWaterMark = hwm;
+            }
         }
         // clear out any extra pools
         if(originalNumPools > m_NumPools){
@@ -189,6 +238,7 @@ struct PoolAllocator32b {
         m_MaxNumPools = other.m_MaxNumPools;
         other.m_MaxNumPools = 0;
         m_FreeChunk = other.m_FreeChunk;
+        m_LastPoolHighWaterMark = other.m_LastPoolHighWaterMark;
         m_InPoolBitmask = other.m_InPoolBitmask;
         m_PoolIndexBitmask = other.m_PoolIndexBitmask;
         m_Log2PoolSize = other.m_Log2PoolSize;
@@ -203,6 +253,7 @@ struct PoolAllocator32b {
         m_MaxNumPools = other.m_MaxNumPools;
         other.m_MaxNumPools = 0;
         m_FreeChunk = other.m_FreeChunk;
+        m_LastPoolHighWaterMark = other.m_LastPoolHighWaterMark;
         m_InPoolBitmask = other.m_InPoolBitmask;
         m_PoolIndexBitmask = other.m_PoolIndexBitmask;
         m_Log2PoolSize = other.m_Log2PoolSize;

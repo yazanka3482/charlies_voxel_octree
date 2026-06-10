@@ -261,6 +261,10 @@ uint64_t VoxelOctree::getMemoryUsage(){
     return memoryUsage;
 }
 
+uint64_t VoxelOctree::getFileSize() const {
+    return octree.getFileSize();
+}
+
 void VoxelOctree::saveToFile(std::string filename){
     std::ofstream file;
     std::string fname_adj = filename;

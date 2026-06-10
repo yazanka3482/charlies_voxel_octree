@@ -84,6 +84,8 @@ public:
 
     uint64_t getMemoryUsage();
 
+    uint64_t getFileSize() const;
+
     void saveToFile(std::string filename);
 
     void loadFromFile(std::ifstream &file);

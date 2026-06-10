@@ -440,6 +440,11 @@ struct BitOctree{
         }
     }
 
+    uint64_t getFileSize() const {
+        return sizeof(m_MaxDepth) + sizeof(m_RootNode)
+            + m_BranchNodes.getFileSize() + m_LeafNodes.getFileSize();
+    }
+
     void writeToFile(std::ofstream &file){
         file.write((char*)&m_MaxDepth, sizeof(m_MaxDepth));
         file.write((char*)&m_RootNode, sizeof(m_RootNode));

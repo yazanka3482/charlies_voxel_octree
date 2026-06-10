@@ -7,6 +7,9 @@ A fast, memory-efficient sparse voxel octree library with GPU-accelerated mesh-t
 | 128³ | 512³ |
 |:---:|:---:|
 | ![Stanford bunny voxelized at 128³](images/vox_low.png) | ![Stanford bunny voxelized at 512³](images/vox_high.png) |
+| **<0.1 s** · 174 kB | **~8 s** · 2.8 MB |
+
+Timings measured on a Mac M1 GPU.
 
 ## Features
 
