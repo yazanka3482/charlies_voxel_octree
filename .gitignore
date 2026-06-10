@@ -1,0 +1,12 @@
+# Build outputs
+*.o
+voxelize_stl
+
+# Generated / test outputs
+*.voxel
+
+# tinyBVH is fetched by `make deps`
+extern/tinybvh/tiny_bvh.h
+
+# OS
+.DS_Store
